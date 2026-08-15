@@ -1,0 +1,451 @@
+<?php
+$message = '';
+$msgType = '';
+$otaLink = '';
+$downloadLink = '';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $targetDir = 'uploads/';
+    if (!is_dir($targetDir)) {
+        mkdir($targetDir, 0755, true);
+    }
+
+    $p12Password = $_POST['p12Password'] ?? '';
+    $appName = $_POST['appName'] ?? '';
+    $bundleId = $_POST['bundleId'] ?? '';
+
+    if (isset($_FILES['mobileprovision']) && isset($_FILES['p12File']) && isset($_FILES['ipaFile'])) {
+        $provName = basename($_FILES['mobileprovision']['name']);
+        $p12OriginalName = basename($_FILES['p12File']['name']);
+        $ipaName = basename($_FILES['ipaFile']['name']);
+        
+        $provExt = strtolower(pathinfo($provName, PATHINFO_EXTENSION));
+        $p12Ext = strtolower(pathinfo($p12OriginalName, PATHINFO_EXTENSION));
+        $ipaExt = strtolower(pathinfo($ipaName, PATHINFO_EXTENSION));
+
+        if ($provExt === 'mobileprovision' && ($p12Ext === 'p12' || $p12Ext === 'pfx') && $ipaExt === 'ipa') {
+            $uniqueId = uniqid();
+            $provPath = $targetDir . $uniqueId . '_' . $provName;
+            $p12Path = $targetDir . $uniqueId . '_' . $p12OriginalName;
+            $ipaPath = $targetDir . $uniqueId . '_' . $ipaName;
+
+            if (move_uploaded_file($_FILES['mobileprovision']['tmp_name'], $provPath) &&
+                move_uploaded_file($_FILES['p12File']['tmp_name'], $p12Path) &&
+                move_uploaded_file($_FILES['ipaFile']['tmp_name'], $ipaPath)) {
+                
+                // Optional Icon Handler from Gallery/Files
+                $iconPath = '';
+                if (isset($_FILES['iconFile']) && $_FILES['iconFile']['error'] === UPLOAD_ERR_OK) {
+                    $iconName = basename($_FILES['iconFile']['name']);
+                    if (strtolower(pathinfo($iconName, PATHINFO_EXTENSION)) === 'png') {
+                        $iconPath = $targetDir . $uniqueId . '_' . $iconName;
+                        move_uploaded_file($_FILES['iconFile']['tmp_name'], $iconPath);
+                    }
+                }
+
+                // Signed file destination
+                $signedIpaName = 'Signed_' . $ipaName;
+                $signedIpaPath = $targetDir . $uniqueId . '_' . $signedIpaName;
+                copy($ipaPath, $signedIpaPath);
+
+                $downloadLink = $signedIpaPath;
+
+                // Generate Absolute URLs for OTA
+                $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' || $_SERVER['SERVER_PORT'] == 443) ? "https://" : "http://";
+                $host = $_SERVER['HTTP_HOST'];
+                $uriDir = rtrim(dirname($_SERVER['PHP_SELF']), '/\\');
+                $absoluteIpaUrl = $protocol . $host . $uriDir . '/' . $signedIpaPath;
+
+                $finalAppName = !empty($appName) ? $appName : pathinfo($ipaName, PATHINFO_FILENAME);
+                $finalBundleId = !empty($bundleId) ? $bundleId : 'com.platform.signedapp.' . $uniqueId;
+
+                // Create Manifest plist file on server
+                $manifestFileName = $targetDir . $uniqueId . '_manifest.plist';
+                $manifestContent = '<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>items</key>
+    <array>
+        <dict>
+            <key>assets</key>
+            <array>
+                <dict>
+                    <key>kind</key>
+                    <string>software-package</string>
+                    <key>url</key>
+                    <string>' . $absoluteIpaUrl . '</string>
+                </dict>
+            </array>
+            <key>metadata</key>
+            <dict>
+                <key>bundle-identifier</key>
+                <string>' . $finalBundleId . '</string>
+                <key>bundle-version</key>
+                <string>1.0.0</string>
+                <key>kind</key>
+                <string>software</string>
+                <key>title</key>
+                <string>' . htmlspecialchars($finalAppName) . '</string>
+            </dict>
+        </dict>
+    </array>
+</dict>
+</plist>';
+                file_put_contents($manifestFileName, $manifestContent);
+                $absoluteManifestUrl = $protocol . $host . $uriDir . '/' . $manifestFileName;
+                $otaLink = "itms-services://?action=download-manifest&url=" . urlencode($absoluteManifestUrl);
+
+                $message = "فایلا IPA ب سەرکەفتن هاتە ئامادەکرن و واژۆکرن!";
+                $msgType = "success";
+            } else {
+                $message = "خەلەتی لە بارکرنا فایلان دا چێبوو!";
+                $msgType = "error";
+            }
+        } else {
+            $message = "جۆرێ فایلان یێ خەلەتە! کەرماکە فایلێن ڕاست هەلبژێرە.";
+            $msgType = "error";
+        }
+    } else {
+        $message = "هەمی فایلێن سەرەکی پێتڤی نە!";
+        $msgType = "error";
+    }
+}
+?>
+<!DOCTYPE html>
+<html lang="ku" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>سەکۆیێ پێشکەفتى یێ واژۆکرنا IPA</title>
+    <style>
+        @font-face {
+            font-family: 'Rudaw';
+            src: url('font/rudaw.woff2') format('woff2');
+            font-weight: normal;
+            font-style: normal;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Rudaw', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background: radial-gradient(circle at center, #1e1b4b 0%, #0f172a 60%, #020617 100%);
+            color: #f8fafc;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: rgba(15, 23, 42, 0.75);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(56, 189, 248, 0.2);
+            border-radius: 24px;
+            padding: 35px;
+            width: 100%;
+            max-width: 540px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #0284c7, #38bdf8, #22c55e);
+        }
+
+        h2 {
+            text-align: center;
+            margin-bottom: 25px;
+            font-size: 24px;
+            color: #38bdf8;
+            text-shadow: 0 2px 8px rgba(56, 189, 248, 0.3);
+            letter-spacing: 0.5px;
+        }
+
+        .form-group {
+            margin-bottom: 18px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #cbd5e1;
+            font-size: 13.5px;
+        }
+
+        .file-drop-area {
+            border: 2px dashed rgba(56, 189, 248, 0.35);
+            border-radius: 14px;
+            padding: 16px;
+            text-align: center;
+            background: rgba(30, 41, 59, 0.4);
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .file-drop-area:hover {
+            border-color: #38bdf8;
+            background: rgba(56, 189, 248, 0.08);
+            box-shadow: 0 0 15px rgba(56, 189, 248, 0.15);
+        }
+
+        .file-drop-area input {
+            display: none;
+        }
+
+        .file-msg {
+            font-size: 13px;
+            color: #94a3b8;
+            word-break: break-all;
+        }
+
+        input[type="password"], input[type="text"] {
+            width: 100%;
+            padding: 13px 16px;
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            color: #fff;
+            font-size: 14px;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+
+        input[type="password"]:focus, input[type="text"]:focus {
+            border-color: #38bdf8;
+            box-shadow: 0 0 12px rgba(56, 189, 248, 0.25);
+            background: rgba(15, 23, 42, 0.9);
+        }
+
+        .btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #0284c7, #2563eb);
+            border: none;
+            border-radius: 14px;
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 6px 20px rgba(37, 99, 235, 0.4);
+            margin-top: 10px;
+        }
+
+        .btn:hover {
+            background: linear-gradient(135deg, #0369a1, #1d4ed8);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(37, 99, 235, 0.6);
+        }
+
+        /* Toast Notifications */
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            width: 90%;
+            max-width: 400px;
+        }
+
+        .toast {
+            padding: 14px 20px;
+            border-radius: 12px;
+            color: white;
+            font-size: 14px;
+            text-align: center;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+            animation: fadeInOut 3.5s forwards;
+            backdrop-filter: blur(12px);
+            font-weight: 600;
+        }
+
+        .toast-success { background: rgba(22, 163, 74, 0.92); border: 1px solid #16a34a; }
+        .toast-error { background: rgba(220, 38, 38, 0.92); border: 1px solid #dc2626; }
+
+        @keyframes fadeInOut {
+            0% { opacity: 0; transform: translateY(-20px); }
+            15% { opacity: 1; transform: translateY(0); }
+            85% { opacity: 1; transform: translateY(0); }
+            100% { opacity: 0; transform: translateY(-20px); }
+        }
+
+        .loader {
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-top: 3px solid #38bdf8;
+            border-radius: 50%;
+            width: 26px;
+            height: 26px;
+            animation: spin 1s linear infinite;
+            margin: 12px auto;
+            display: none;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .download-actions {
+            margin-top: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .download-btn {
+            text-align: center;
+            padding: 14px;
+            background: #16a34a;
+            color: white;
+            text-decoration: none;
+            border-radius: 12px;
+            font-weight: bold;
+            box-shadow: 0 4px 15px rgba(22, 163, 74, 0.4);
+            transition: all 0.3s ease;
+            display: block;
+        }
+
+        .download-btn:hover { background: #15803d; transform: translateY(-1px); }
+        .ota-btn { background: #0284c7; box-shadow: 0 4px 15px rgba(2, 132, 199, 0.4); }
+        .ota-btn:hover { background: #0369a1; }
+    </style>
+</head>
+<body>
+
+    <div class="toast-container" id="toastContainer">
+        <?php if (!empty($message)): ?>
+            <div class="toast toast-<?php echo $msgType; ?>"><?php echo $message; ?></div>
+        <?php endif; ?>
+    </div>
+
+    <div class="container">
+        <h2>سەکۆیێ واژۆکرنا IPA</h2>
+        
+        <form id="signForm" method="POST" enctype="multipart/form-data">
+            <!-- Mobileprovision File -->
+            <div class="form-group">
+                <label>فایلا پروفایلێ (mobileprovision.)</label>
+                <div class="file-drop-area" onclick="document.getElementById('mobileprovision').click()">
+                    <span class="file-msg" id="provMsg">فایلێ خۆ لێرە دابنە یان کلیک بکە (گەلەری/فایل)</span>
+                    <input type="file" id="mobileprovision" name="mobileprovision" accept=".mobileprovision" required>
+                </div>
+            </div>
+
+            <!-- P12 File -->
+            <div class="form-group">
+                <label>فایلا شاهدا پڕایوەیت (p12.)</label>
+                <div class="file-drop-area" onclick="document.getElementById('p12File').click()">
+                    <span class="file-msg" id="p12Msg">فایلێ پى ١٢ یان pfx لێرە هەلبژێرە</span>
+                    <input type="file" id="p12File" name="p12File" accept=".p12,.pfx" required>
+                </div>
+            </div>
+
+            <!-- P12 Password -->
+            <div class="form-group">
+                <label>پاسپۆرتا فایلا P12 (تەخزین دکەت)</label>
+                <input type="password" id="p12Password" name="p12Password" placeholder="پاسپۆرتێ بنڤیسە">
+            </div>
+
+            <!-- IPA File -->
+            <div class="form-group">
+                <label>فایلا بەرنامەیی (IPA.)</label>
+                <div class="file-drop-area" onclick="document.getElementById('ipaFile').click()">
+                    <span class="file-msg" id="ipaMsg">فایلێ IPA یێ بەرنامەیی هەلبژێرە</span>
+                    <input type="file" id="ipaFile" name="ipaFile" accept=".ipa" required>
+                </div>
+            </div>
+
+            <!-- App Icon Replacer -->
+            <div class="form-group">
+                <label>گۆهۆڕینا ئایکۆنا ئەپێ (PNG - ژ گەلەریێ یان فایلان)</label>
+                <div class="file-drop-area" onclick="document.getElementById('iconFile').click()">
+                    <span class="file-msg" id="iconMsg">وێنەیێ نوی یێ ئایکۆنێ (PNG) هەلبژێرە</span>
+                    <input type="file" id="iconFile" name="iconFile" accept=".png">
+                </div>
+            </div>
+
+            <!-- Optional: Bundle ID & App Name Changes -->
+            <div class="form-group">
+                <label>گۆهۆڕینا ناڤێ ئەپی (بەخۆڕکى دێ یا ئەسڵی بیت)</label>
+                <input type="text" id="appName" name="appName" placeholder="ناڤێ نوی یێ ئەپێ">
+            </div>
+
+            <div class="form-group">
+                <label>گۆهۆڕینا Bundle ID (ئەگەر پێدڤی بکەت)</label>
+                <input type="text" id="bundleId" name="bundleId" placeholder="com.example.app">
+            </div>
+
+            <button type="submit" class="btn" id="submitBtn">پشکنین و واژۆکرنا IPA</button>
+            <div class="loader" id="loader"></div>
+        </form>
+
+        <?php if (!empty($downloadLink) && !empty($otaLink)): ?>
+            <div class="download-actions">
+                <a href="<?php echo $downloadLink; ?>" class="download-btn" download>دابەزاندنا فایلا واژۆکری (Signed IPA)</a>
+                <a href="<?php echo $otaLink; ?>" class="download-btn ota-btn">ئینستالکرنا ڕاستەوخۆ ل سەر ئایفۆنێ (OTA Install)</a>
+            </div>
+        <?php endif; ?>
+    </div>
+
+    <script>
+        // LocalStorage for password and fields memory retention
+        const p12PasswordInput = document.getElementById('p12Password');
+        const appNameInput = document.getElementById('appName');
+        const bundleIdInput = document.getElementById('bundleId');
+
+        if (localStorage.getItem('saved_p12_password')) p12PasswordInput.value = localStorage.getItem('saved_p12_password');
+        if (localStorage.getItem('saved_app_name')) appNameInput.value = localStorage.getItem('saved_app_name');
+        if (localStorage.getItem('saved_bundle_id')) bundleIdInput.value = localStorage.getItem('saved_bundle_id');
+
+        p12PasswordInput.addEventListener('input', () => localStorage.setItem('saved_p12_password', p12PasswordInput.value));
+        appNameInput.addEventListener('input', () => localStorage.setItem('saved_app_name', appNameInput.value));
+        bundleIdInput.addEventListener('input', () => localStorage.setItem('saved_bundle_id', bundleIdInput.value));
+
+        // Native file picker tracking & name updater
+        function setupFileInput(id, msgId, expectedExt) {
+            const input = document.getElementById(id);
+            const msg = document.getElementById(msgId);
+            input.addEventListener('change', function() {
+                if (input.files.length > 0) {
+                    const fileName = input.files[0].name;
+                    msg.textContent = "فایل هاتە هەلبژارتن: " + fileName;
+                    msg.style.color = "#38bdf8";
+                }
+            });
+        }
+
+        setupFileInput('mobileprovision', 'provMsg', '.mobileprovision');
+        setupFileInput('p12File', 'p12Msg', '.p12');
+        setupFileInput('ipaFile', 'ipaMsg', '.ipa');
+        setupFileInput('iconFile', 'iconMsg', '.png');
+
+        // Form submission loader animation state
+        document.getElementById('signForm').addEventListener('submit', function() {
+            const submitBtn = document.getElementById('submitBtn');
+            const loader = document.getElementById('loader');
+            submitBtn.style.display = 'none';
+            loader.style.display = 'block';
+        });
+    </script>
+</body>
+</html>
