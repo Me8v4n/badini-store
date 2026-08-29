@@ -10,7 +10,7 @@
                 <dict>
                     <key>kind</key>
                     <string>software-package</string>
-                    <string>https://archive.org/download/manifest_20260829/esign.ipa</string>
+                    <string>https://github.com/Me8v4n/badini-store/raw/refs/heads/main/esign.ipa</string>
                 </dict>
             </array>
             <key>metadata</key>
