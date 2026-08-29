@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>items</key>
+    <array>
+        <dict>
+            <key>assets</key>
+            <array>
+                <dict>
+                    <key>kind</key>
+                    <string>software-package</string>
+                    <!-- لێرە لینکا Archive.org دانە -->
+                    <string>https://archive.org/download/manifest_20260829/esign.ipa</string>
+                </dict>
+                <dict>
+                    <key>kind</key>
+                    <string>display-image</string>
+                    <string>https://foloiq.rf.gd/esign.png</string>
+                </dict>
+                <dict>
+                    <key>kind</key>
+                    <string>full-size-image</string>
+                    <string>https://foloiq.rf.gd/esign.png</string>
+                </dict>
+            </array>
+            <key>metadata</key>
+            <dict>
+                <key>bundle-identifier</key>
+                <string>p3.inplace.esign</string>
+                <key>bundle-version</key>
+                <string>4.8.2</string>
+                <key>kind</key>
+                <string>software</string>
+                <key>platform-identifier</key>
+                <string>com.apple.platform.iphoneos</string>
+                <key>title</key>
+                <string>ESign</string>
+            </dict>
+        </dict>
+    </array>
+</dict>
+</plist>
