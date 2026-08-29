@@ -10,30 +10,24 @@
                 <dict>
                     <key>kind</key>
                     <string>software-package</string>
-                    <!-- لێرە لینکا Archive.org دانە -->
-                    <string>https://github.com/Me8v4n/badini-store/raw/refs/heads/main/esign.ipa</string>
+                    <key>url</key>
+                    <string>https://raw.githubusercontent.com/Me8v4n/badini-store/main/esign.ipa</string>
                 </dict>
                 <dict>
                     <key>kind</key>
                     <string>display-image</string>
-                    <string>https://foloiq.rf.gd/esign.png</string>
-                </dict>
-                <dict>
-                    <key>kind</key>
-                    <string>full-size-image</string>
-                    <string>https://foloiq.rf.gd/esign.png</string>
+                    <key>url</key>
+                    <string>https://foloiq.rf.gd/icon.png</string>
                 </dict>
             </array>
             <key>metadata</key>
             <dict>
                 <key>bundle-identifier</key>
-                <string>p3.inplace.esign</string>
+                <string>p3.xyz.yyyue.esign</string>
                 <key>bundle-version</key>
-                <string>4.8.2</string>
+                <string>5.0.2</string>
                 <key>kind</key>
                 <string>software</string>
-                <key>platform-identifier</key>
-                <string>com.apple.platform.iphoneos</string>
                 <key>title</key>
                 <string>ESign</string>
             </dict>
