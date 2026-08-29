@@ -11,7 +11,7 @@
                     <key>kind</key>
                     <string>software-package</string>
                     <!-- لێرە لینکا Archive.org دانە -->
-                    <string>https://archive.org/download/manifest_20260829/esign.ipa</string>
+                    <string>https://github.com/Me8v4n/badini-store/raw/refs/heads/main/esign.ipa</string>
                 </dict>
                 <dict>
                     <key>kind</key>
